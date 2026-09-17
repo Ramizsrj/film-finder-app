@@ -1,0 +1,23 @@
+# API key - never commit this
+src/Secrets.h
+
+# Build output
+bin/*.exe
+bin/*.pdb
+bin/*.ilk
+bin/*.lib
+bin/*.exp
+obj/
+*.obj
+*.log
+
+# Visual Studio
+.vs/
+*.vcxproj.user
+*.suo
+*.sdf
+*.opensdf
+
+# OS junk
+Thumbs.db
+.DS_Store
