@@ -1,5 +1,7 @@
 # Film Finder
 
+Repository: https://github.com/Ramizsrj/film-finder-app
+
 A Data Driven App built with openFrameworks (C++) that searches [The Movie
 Database (TMDB)](https://www.themoviedb.org/) for films and displays their
 poster, release year, rating, genres, runtime and plot summary.
