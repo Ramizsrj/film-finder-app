@@ -16,7 +16,7 @@ class TMDBService{
 		TMDBService();
 		~TMDBService();
 
-		void setup(const std::string & accessTokenIn);
+		void setup(const std::string & apiKeyIn);
 
 		// Starts an async search; any previous in-flight search is cancelled.
 		void searchMovies(const std::string & query);
@@ -40,15 +40,20 @@ class TMDBService{
 		std::string buildSearchUrl(const std::string & query) const;
 		std::string buildDetailsUrl(int movieId) const;
 		std::string buildPosterUrl(const std::string & posterPath, const std::string & size) const;
-		ofHttpRequest buildAuthorizedRequest(const std::string & url, const std::string & name) const;
 
 		std::vector<std::shared_ptr<Movie>> parseSearchResults(const ofJson & json) const;
 		void applyDetails(std::shared_ptr<Movie> movie, const ofJson & json) const;
 
-		// TMDB's v4 "Read Access Token" (a JWT) - sent as a Bearer token, not
-		// as an api_key query param.
-		std::string accessToken;
-		ofURLFileLoader loader;
+		// TMDB v3 API key, sent as an api_key query param. Deliberately NOT
+		// using the v4 Bearer-token approach here: that requires a second
+		// ofURLFileLoader instance, and openFrameworks 0.12.1's
+		// ofURLFileLoaderImpl::stop() unconditionally calls
+		// curl_global_cleanup() with no reference counting (its "only once"
+		// guard flag is declared but never actually set) - so a second
+		// loader instance racing the shared global one is a real crash.
+		// Sticking to the single global loader (via ofLoadURLAsync) avoids
+		// the bug entirely.
+		std::string apiKey;
 
 		int pendingSearchRequestId = -1;
 		std::map<int, std::shared_ptr<Movie>> pendingDetailRequests;

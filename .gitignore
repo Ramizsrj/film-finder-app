@@ -10,6 +10,7 @@ bin/*.exp
 obj/
 *.obj
 *.log
+bin/data/filmFinder_log.txt
 
 # Visual Studio
 .vs/

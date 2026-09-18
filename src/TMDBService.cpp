@@ -21,6 +21,32 @@ namespace{
 		}
 		return escaped.str();
 	}
+
+	// ofJson::value(key, fallback) only substitutes the fallback when a key
+	// is *missing* - TMDB frequently returns fields as explicit JSON null
+	// (e.g. release_date, overview, poster_path on newer/incomplete
+	// entries), which .value() throws on ("type must be string, but is
+	// null"). These helpers treat missing-or-null the same way.
+	std::string jsonString(const ofJson & json, const std::string & key, const std::string & fallback = ""){
+		if(json.contains(key) && !json[key].is_null() && json[key].is_string()){
+			return json[key].get<std::string>();
+		}
+		return fallback;
+	}
+
+	double jsonNumber(const ofJson & json, const std::string & key, double fallback = 0.0){
+		if(json.contains(key) && !json[key].is_null() && json[key].is_number()){
+			return json[key].get<double>();
+		}
+		return fallback;
+	}
+
+	int jsonInt(const ofJson & json, const std::string & key, int fallback = 0){
+		if(json.contains(key) && !json[key].is_null() && json[key].is_number()){
+			return json[key].get<int>();
+		}
+		return fallback;
+	}
 }
 
 TMDBService::TMDBService(){
@@ -31,42 +57,35 @@ TMDBService::~TMDBService(){
 	ofUnregisterURLNotification(this);
 }
 
-void TMDBService::setup(const std::string & accessTokenIn){
-	accessToken = accessTokenIn;
+void TMDBService::setup(const std::string & apiKeyIn){
+	apiKey = apiKeyIn;
 }
 
 std::string TMDBService::buildSearchUrl(const std::string & query) const{
-	return API_BASE + "/search/movie?include_adult=false&query=" + urlEncode(query);
+	return API_BASE + "/search/movie?api_key=" + apiKey + "&include_adult=false&query=" + urlEncode(query);
 }
 
 std::string TMDBService::buildDetailsUrl(int movieId) const{
-	return API_BASE + "/movie/" + ofToString(movieId);
+	return API_BASE + "/movie/" + ofToString(movieId) + "?api_key=" + apiKey;
 }
 
 std::string TMDBService::buildPosterUrl(const std::string & posterPath, const std::string & size) const{
 	return IMAGE_BASE + size + posterPath;
 }
 
-ofHttpRequest TMDBService::buildAuthorizedRequest(const std::string & url, const std::string & name) const{
-	ofHttpRequest request(url, name);
-	request.headers["Authorization"] = "Bearer " + accessToken;
-	request.headers["Accept"] = "application/json";
-	return request;
-}
-
 void TMDBService::searchMovies(const std::string & query){
 	if(pendingSearchRequestId != -1){
-		loader.remove(pendingSearchRequestId);
+		ofRemoveURLRequest(pendingSearchRequestId);
 		pendingSearchRequestId = -1;
 	}
-	pendingSearchRequestId = loader.handleRequestAsync(buildAuthorizedRequest(buildSearchUrl(query), "search"));
+	pendingSearchRequestId = ofLoadURLAsync(buildSearchUrl(query), "search");
 }
 
 void TMDBService::loadMovieDetails(std::shared_ptr<Movie> movie){
 	if(!movie || movie->detailsLoaded){
 		return;
 	}
-	int requestId = loader.handleRequestAsync(buildAuthorizedRequest(buildDetailsUrl(movie->id), "details"));
+	int requestId = ofLoadURLAsync(buildDetailsUrl(movie->id), "details");
 	pendingDetailRequests[requestId] = movie;
 }
 
@@ -84,12 +103,12 @@ std::vector<std::shared_ptr<Movie>> TMDBService::parseSearchResults(const ofJson
 	if(json.contains("results") && json["results"].is_array()){
 		for(const auto & item : json["results"]){
 			auto movie = std::make_shared<Movie>();
-			movie->id = item.value("id", 0);
-			movie->title = item.value("title", std::string("Untitled"));
-			movie->releaseDate = item.value("release_date", std::string(""));
-			movie->overview = item.value("overview", std::string("No summary available for this film."));
-			movie->posterPath = item.value("poster_path", std::string(""));
-			movie->voteAverage = item.value("vote_average", 0.0);
+			movie->id = jsonInt(item, "id");
+			movie->title = jsonString(item, "title", "Untitled");
+			movie->releaseDate = jsonString(item, "release_date");
+			movie->overview = jsonString(item, "overview", "No summary available for this film.");
+			movie->posterPath = jsonString(item, "poster_path");
+			movie->voteAverage = jsonNumber(item, "vote_average");
 			movies.push_back(movie);
 		}
 	}
@@ -97,12 +116,12 @@ std::vector<std::shared_ptr<Movie>> TMDBService::parseSearchResults(const ofJson
 }
 
 void TMDBService::applyDetails(std::shared_ptr<Movie> movie, const ofJson & json) const{
-	movie->tagline = json.value("tagline", std::string(""));
-	movie->runtimeMinutes = json.value("runtime", 0);
+	movie->tagline = jsonString(json, "tagline");
+	movie->runtimeMinutes = jsonInt(json, "runtime");
 	movie->genres.clear();
 	if(json.contains("genres") && json["genres"].is_array()){
 		for(const auto & genre : json["genres"]){
-			movie->genres.push_back(genre.value("name", std::string("")));
+			movie->genres.push_back(jsonString(genre, "name"));
 		}
 	}
 	movie->detailsLoaded = true;
@@ -155,6 +174,13 @@ void TMDBService::urlResponse(ofHttpResponse & response){
 		pendingPosterRequests.erase(posterIt);
 		if(response.status == 200){
 			if(ofLoadImage(movie->poster, response.data)){
+				// ofLoadImage(ofImage&, ofBuffer) decodes via ofImage's
+				// implicit conversion to ofPixels&, which fills the pixel
+				// data but does NOT touch ofImage's own width/height/texture
+				// bookkeeping - update() copies pixels -> texture and syncs
+				// getWidth()/getHeight(), which draw() and our layout code
+				// both rely on.
+				movie->poster.update();
 				movie->posterLoaded = true;
 			}
 		}
