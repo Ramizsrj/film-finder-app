@@ -21,7 +21,7 @@ void ofApp::setup(){
 		handleDetailsComplete(movie, success, errorMessage);
 	};
 
-	if(TMDB_API_KEY == "YOUR_TMDB_API_KEY_HERE"){
+	if(TMDB_API_KEY == "YOUR_TMDB_READ_ACCESS_TOKEN_HERE"){
 		statusMessage = "Add your TMDB API key to src/Secrets.h before searching.";
 		statusIsError = true;
 	}else{
@@ -268,7 +268,7 @@ std::vector<std::string> ofApp::wrapText(ofTrueTypeFont & font, const std::strin
 
 //--------------------------------------------------------------
 void ofApp::submitSearch(){
-	if(TMDB_API_KEY == "YOUR_TMDB_API_KEY_HERE"){
+	if(TMDB_API_KEY == "YOUR_TMDB_READ_ACCESS_TOKEN_HERE"){
 		statusMessage = "Add your TMDB API key to src/Secrets.h before searching.";
 		statusIsError = true;
 		return;

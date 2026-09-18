@@ -24,6 +24,9 @@ poster, release year, rating, genres, runtime and plot summary.
   plot summary
 - Handles no-results, network errors and invalid/missing API key cases
 
+See [CODE_EXPLANATION.md](CODE_EXPLANATION.md) for a walkthrough of the
+architecture and key programming techniques used.
+
 ## Structure
 
 - `src/Movie.h/.cpp` - data model for a single film

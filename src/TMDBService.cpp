@@ -31,35 +31,42 @@ TMDBService::~TMDBService(){
 	ofUnregisterURLNotification(this);
 }
 
-void TMDBService::setup(const std::string & apiKeyIn){
-	apiKey = apiKeyIn;
+void TMDBService::setup(const std::string & accessTokenIn){
+	accessToken = accessTokenIn;
 }
 
 std::string TMDBService::buildSearchUrl(const std::string & query) const{
-	return API_BASE + "/search/movie?api_key=" + apiKey + "&include_adult=false&query=" + urlEncode(query);
+	return API_BASE + "/search/movie?include_adult=false&query=" + urlEncode(query);
 }
 
 std::string TMDBService::buildDetailsUrl(int movieId) const{
-	return API_BASE + "/movie/" + ofToString(movieId) + "?api_key=" + apiKey;
+	return API_BASE + "/movie/" + ofToString(movieId);
 }
 
 std::string TMDBService::buildPosterUrl(const std::string & posterPath, const std::string & size) const{
 	return IMAGE_BASE + size + posterPath;
 }
 
+ofHttpRequest TMDBService::buildAuthorizedRequest(const std::string & url, const std::string & name) const{
+	ofHttpRequest request(url, name);
+	request.headers["Authorization"] = "Bearer " + accessToken;
+	request.headers["Accept"] = "application/json";
+	return request;
+}
+
 void TMDBService::searchMovies(const std::string & query){
 	if(pendingSearchRequestId != -1){
-		ofRemoveURLRequest(pendingSearchRequestId);
+		loader.remove(pendingSearchRequestId);
 		pendingSearchRequestId = -1;
 	}
-	pendingSearchRequestId = ofLoadURLAsync(buildSearchUrl(query), "search");
+	pendingSearchRequestId = loader.handleRequestAsync(buildAuthorizedRequest(buildSearchUrl(query), "search"));
 }
 
 void TMDBService::loadMovieDetails(std::shared_ptr<Movie> movie){
 	if(!movie || movie->detailsLoaded){
 		return;
 	}
-	int requestId = ofLoadURLAsync(buildDetailsUrl(movie->id), "details");
+	int requestId = loader.handleRequestAsync(buildAuthorizedRequest(buildDetailsUrl(movie->id), "details"));
 	pendingDetailRequests[requestId] = movie;
 }
 

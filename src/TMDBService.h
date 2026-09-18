@@ -16,7 +16,7 @@ class TMDBService{
 		TMDBService();
 		~TMDBService();
 
-		void setup(const std::string & apiKeyIn);
+		void setup(const std::string & accessTokenIn);
 
 		// Starts an async search; any previous in-flight search is cancelled.
 		void searchMovies(const std::string & query);
@@ -40,11 +40,15 @@ class TMDBService{
 		std::string buildSearchUrl(const std::string & query) const;
 		std::string buildDetailsUrl(int movieId) const;
 		std::string buildPosterUrl(const std::string & posterPath, const std::string & size) const;
+		ofHttpRequest buildAuthorizedRequest(const std::string & url, const std::string & name) const;
 
 		std::vector<std::shared_ptr<Movie>> parseSearchResults(const ofJson & json) const;
 		void applyDetails(std::shared_ptr<Movie> movie, const ofJson & json) const;
 
-		std::string apiKey;
+		// TMDB's v4 "Read Access Token" (a JWT) - sent as a Bearer token, not
+		// as an api_key query param.
+		std::string accessToken;
+		ofURLFileLoader loader;
 
 		int pendingSearchRequestId = -1;
 		std::map<int, std::shared_ptr<Movie>> pendingDetailRequests;
